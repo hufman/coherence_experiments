@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from twisted.internet import reactor
+from coherence.upnp.core import DIDLLite
 from coherence.upnp.core.ssdp import SSDPServer
 from coherence.upnp.core.msearch import MSearch
 from coherence.upnp.core.device import Device, RootDevice
@@ -43,7 +44,8 @@ class DevicesListener(object):
 		else:
 			root_id = infos['USN'][:-len(infos['ST']) - 2]
 			root = self._get_device_by_id(root_id)
-			device = Device(infos, root)
+			device = Device(infos, root)	# kicks off loading of the device info
+			                            	# which will call device_found callback
 	def ssdp_deleted(self, device_type, infos, *args, **kwargs):
 		device = self._get_device_with_usn(infos['USN'])
 		if device:
@@ -56,6 +58,25 @@ class DevicesListener(object):
 	def device_found(self, device):
 		print("Found device %s"%(device,))
 		self.devices.append(device)
+		for service in device.get_services():
+			print("  %s @ %s"%(service.get_type(), service.get_control_url()))
+			if 'ContentDirectory' in service.get_type():
+				for actionname,action in service.get_actions().items():
+					if action.get_name() == 'Browse':
+						d = action.call(
+						    ObjectID='0',
+						    BrowseFlag='BrowseDirectChildren',
+						    Filter='*', SortCriteria='',
+						    StartingIndex='0',
+						    RequestedCount='0'
+						)
+						d.addCallback(self.browse_callback)
+	
+	def browse_callback(self, result):
+		results = DIDLLite.DIDLElement.fromString(result['Result']).getItems()
+		print([result.title for result in results])
+	def browse_error(self, error):
+		print(error.getTraceback())
 
 devices = DevicesListener()
 
