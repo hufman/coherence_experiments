@@ -1,0 +1,9 @@
+<html>
+<body>
+{% for device in devices %}
+  <div>
+    <span title="{{ device.get_id() }}">{{device.friendly_name }}</span>
+  </div>
+{% endfor %}
+</body>
+</html>
