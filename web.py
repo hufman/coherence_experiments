@@ -1,22 +1,47 @@
 #import treq
-from klein import Klein
-import urllib
-from devices import DeviceManager
-device_list = DeviceManager()
+from twisted.internet import reactor
+from twisted.web.resource import Resource
+from twisted.web.server import Site
 
-app = Klein()
-
+import functools
 import jinja2
-templates = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'), trim_blocks=True, autoescape=True)
+import urllib
 
-@app.route('/devices', branch=True)
-def devices(request):
-	path = urllib.unquote(request.path)
-	if path in ['/devices', '/devices/']:
-		return format_device_list(request)
+from devices import DeviceManager
+from FileBodyProducer import FileBodyProducer
 
-def format_device_list(request):
-	template = templates.get_template('devices.djhtml')
-	return template.render(devices=device_list.devices)
+def ensure_utf8_bytes(v):
+	""" Glibly stolen from the Klein source code """
+	if isinstance(v, unicode):
+		v = v.encode("utf-8")
+	return v
+def ensure_utf8(fun):
+	@functools.wraps(fun)
+	def decorator(*args, **kwargs):
+		return ensure_utf8_bytes(fun(*args, **kwargs))
+	return decorator
 
-app.run("0.0.0.0", 8080)
+class UpnpResource(Resource):
+	isLeaf = True
+	def __init__(self):
+		self.templates = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'), trim_blocks=True, autoescape=True)
+		self.device_list = DeviceManager()
+
+	@ensure_utf8
+	def render(self, request):
+		if request.path in ['/devices', '/devices/']:
+			return self.devices(request)
+
+	def devices(self, request):
+		path = urllib.unquote(request.path)
+		if path in ['/devices', '/devices/']:
+			return self.format_device_list(request)
+
+	def format_device_list(self, request):
+		template = self.templates.get_template('devices.djhtml')
+		return template.render(devices=self.device_list.devices)
+
+resource = UpnpResource()
+factory = Site(resource)
+reactor.listenTCP(8080, factory)
+reactor.run()
