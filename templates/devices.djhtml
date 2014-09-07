@@ -2,6 +2,7 @@
 <body>
 {% for device in devices %}
   <div>
+    <img width="32" height="32" src="{{device | get_device_icon | urlencode}}" />
     <span title="{{ device.get_id() }}">{{device.friendly_name }}</span>
   </div>
 {% endfor %}

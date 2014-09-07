@@ -36,7 +36,7 @@ class DeviceManager(object):
 		found = None
 		for device in self.devices:
 			this_id = device.get_id()
-			if this_id[:5] != 'uid:':
+			if this_id[:5] != 'uuid:':
 				this_id = this_id[5:]
 			if this_id == id:
 				found = device
@@ -72,7 +72,6 @@ class DeviceManager(object):
 
 	def device_found(self, device):
 		logger.debug("UPNP Device discovered: %s"%(device,))
-		print("UPNP Device discovered: %s"%(device,))
 		self.devices.append(device)
 		self._send_event('added', args=(device,))
 	
