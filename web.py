@@ -54,8 +54,17 @@ class UpnpResource(Resource):
 				print("Could not find device %s"%(dev_id,))
 
 	def format_device_list(self, request):
-		template = self.templates.get_template('devices.djhtml')
-		return template.render(devices=self.device_list.devices)
+		if 'json' not in request.requestHeaders.getRawHeaders('Accept', '')[0]:
+			template = self.templates.get_template('devices.djhtml')
+			return template.render(devices=self.device_list.devices)
+		else:
+			devices = [{
+				"uuid": d.get_id(),
+				"usn": d.get_usn(),
+				"st": d.get_st(),
+				"location": self.get_proxied_url(d, urlparse.urlparse(d.get_location())[2])
+				} for d in self.device_list.devices]
+			return json.dumps({"devices":devices})
 
 	def get_proxied_url(self, device, url):
 		# base is devices/
