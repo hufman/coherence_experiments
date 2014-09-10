@@ -74,7 +74,6 @@ class FileBodyProducer(object):
 
         @param consumer: Any L{IConsumer} provider
         """
-        print("Starting to produce uploaded body")
         self._task = self._cooperate(self._writeloop(consumer))
         d = self._task.whenDone()
         def maybeStopped(reason):
