@@ -62,7 +62,12 @@ class UpnpResource(Resource):
 				"uuid": d.get_id(),
 				"usn": d.get_usn(),
 				"st": d.get_st(),
-				"location": self.get_proxied_url(d, urlparse.urlparse(d.get_location())[2])
+				"location": self.get_proxied_url(d, urlparse.urlparse(d.get_location())[2]),
+				"subdevices": [{
+					"usn": s.get_id()+"::"+s.service_type,
+					"st": s.service_type,
+					"location": self.get_proxied_url(d, urlparse.urlparse(d.get_location())[2])
+					} for s in d.get_services()]
 				} for d in self.device_list.devices]
 			return json.dumps({"devices":devices})
 

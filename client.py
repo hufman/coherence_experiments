@@ -48,7 +48,7 @@ class UpnpClientResource(Resource):
 		return self.remote_url + url
 
 class RemoteDevice(object):
-	def __init__(self, remote_url, usn, location, st, server_id):
+	def __init__(self, remote_url, usn, location, st, server_id, subdevices):
 		# remote url is server/devices/{uuid}
 		# location is /desc.xml
 		#
@@ -61,6 +61,10 @@ class RemoteDevice(object):
 		proxylocation = 'http://%s:%s/%s'%(self._get_local_ip(), host.port, location)
 		logging.info("Creating device proxy at %s to %s"%(proxylocation, remote_url))
 		ssdp.register('local', usn, st, proxylocation, server_id, host=host.host)
+		for sd in subdevices:
+			usn = sd['usn']
+			st = sd['st']
+			ssdp.register('local', usn, st, proxylocation, server_id, host=host.host)
 		# tell ssdp where self.server.getHost().port is
 	def _get_local_ip(self):
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -100,8 +104,9 @@ class ServerPoller(object):
 			st = device['st']
 			location = device['location']  # relative to devices, includes uuid
 			location = location.split('/', 1)[-1] # relative to device root
+			subdevices = device['subdevices']
 			if uuid not in self.devices:
-				self.devices[uuid] = RemoteDevice(device_url, usn, location, st, uuid)
+				self.devices[uuid] = RemoteDevice(device_url, usn, location, st, uuid, subdevices)
 
 	def on_error(self, err):
 		print(err)
