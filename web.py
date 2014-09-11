@@ -54,9 +54,17 @@ class UpnpResource(Resource):
 				print("Could not find device %s"%(dev_id,))
 
 	def format_device_list(self, request):
+		def whitelisted_devices(devices):
+			return [
+			    d for d in devices if any([
+			        'X_MS_MediaReceiver' in s.service_type or
+			        'ContentDirectory' in s.service_type
+			        for s in d.get_services()
+			    ])
+			]
 		if 'json' not in request.requestHeaders.getRawHeaders('Accept', '')[0]:
 			template = self.templates.get_template('devices.djhtml')
-			return template.render(devices=self.device_list.devices)
+			return template.render(devices=whitelisted_devices(self.device_list.devices))
 		else:
 			devices = [{
 				"uuid": d.get_id(),
@@ -68,7 +76,7 @@ class UpnpResource(Resource):
 					"st": s.service_type,
 					"location": self.get_proxied_url(d, urlparse.urlparse(d.get_location())[2])
 					} for s in d.get_services()]
-				} for d in self.device_list.devices]
+				} for d in whitelisted_devices(self.device_list.devices)]
 			return json.dumps({"devices":devices})
 
 	def get_proxied_url(self, device, url):
