@@ -46,21 +46,25 @@ class UpnpResource(Resource):
 		if slash_idx > 0:
 			dev_id = urllib.unquote(rest[:slash_idx])
 			device = self.device_list._get_device_by_id(dev_id)
-			if device:
+			if device and self.is_device_whitelisted(device):
 				url = urlparse.urljoin(device.get_location(), rest[slash_idx:])
 				print(url)
 				return proxy_to(request, url)
 			else:
 				print("Could not find device %s"%(dev_id,))
+				request.setResponseCode(404)
+				return 'Could not find device %s'%(dev_id,)
+
+	def is_device_whitelisted(self, device):
+		return any(['X_MS_MediaReceiver' in s.service_type or
+		            'ContentDirectory' in s.service_type
+		            for s in device.get_services()
+		          ])
 
 	def format_device_list(self, request):
 		def whitelisted_devices(devices):
 			return [
-			    d for d in devices if any([
-			        'X_MS_MediaReceiver' in s.service_type or
-			        'ContentDirectory' in s.service_type
-			        for s in d.get_services()
-			    ])
+			    d for d in devices if self.is_device_whitelisted(d)
 			]
 		if 'json' not in request.requestHeaders.getRawHeaders('Accept', '')[0]:
 			template = self.templates.get_template('devices.djhtml')
