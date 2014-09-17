@@ -37,6 +37,42 @@ def proxy_to(request, url):
 	# hold on to the request until later
 	return NOT_DONE_YET
 
+def proxy_response(request, url):
+	""" Send a new request to the given url, return a deferred with content """
+	d = Deferred()
+	response_data = {'code':0, 'content':None, 'headers':Headers({})}
+	class StringPrinter(Protocol):
+		# used to record the result from a url fetch
+		def __init__(self):
+			self.buffer = ''
+		def dataReceived(self, bytes):
+			self.buffer = self.buffer + bytes
+		def connectionLost(self, reason):
+			response_data['content'] = self.buffer
+			d.callback(response_data)
+	def onResponse(response):
+		# proxied response started coming back, headers are load ed
+		response_data['code'] = response.code
+		response_data['headers'] = response.headers
+		response.deliverBody(StringPrinter())
+
+	class RequestWritingPrinter(Protocol):
+		# used to send from the proxied response to the original request
+		def __init__(self, request):
+			self.request = request
+		def dataReceived(self, bytes):
+			self.request.write(bytes)
+		def connectionLost(self, reason):
+			self.request.finish()
+
+	# start the connection
+	agent = Agent(reactor)
+	body = FileBodyProducer(request.content)
+	fetcher = agent.request(request.method, url, request.requestHeaders, body)
+	fetcher.addCallback(onResponse)
+	fetcher.addErrback(d.errback)
+	return d
+
 def fetch(method, url, headers={}, data=''):
 	""" Fetches a page and returns a deferred with the response """
 	headers = Headers(headers)
