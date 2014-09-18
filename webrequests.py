@@ -31,11 +31,10 @@ def proxy_to(request, url):
 			self.request.finish()
 
 	# start the connection
-	agent = ContentDecoderAgent(Agent(reactor), [('gzip', GzipDecoder)])
+	agent = Agent(reactor)
 	body = FileBodyProducer(request.content)
 	headers = request.requestHeaders
 	headers.setRawHeaders('Host', [urlparse(url)[1],])
-	headers.removeHeader('Content-Length')
 	d = agent.request(request.method, url, headers, body)
 	d.addCallback(onResponse)
 
