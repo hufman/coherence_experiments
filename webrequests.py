@@ -35,6 +35,7 @@ def proxy_to(request, url):
 	body = FileBodyProducer(request.content)
 	headers = request.requestHeaders
 	headers.setRawHeaders('Host', [urlparse(url)[1],])
+	headers.removeHeader('Content-Length')
 	d = agent.request(request.method, url, headers, body)
 	d.addCallback(onResponse)
 
@@ -74,6 +75,7 @@ def proxy_response(request, url):
 	body = FileBodyProducer(request.content)
 	headers = request.requestHeaders
 	headers.setRawHeaders('Host', [urlparse(url)[1]])
+	headers.removeHeader('Content-Length')
 	fetcher = agent.request(request.method, url, headers, body)
 	fetcher.addCallback(onResponse)
 	fetcher.addErrback(d.errback)

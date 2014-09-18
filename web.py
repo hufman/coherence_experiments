@@ -166,6 +166,7 @@ class UpnpResource(Resource):
 			request.write(response_data['content'])
 			request.finish()
 			return
+		request.responseHeaders.removeHeader('Content-Length')
 		# get the device that we're talking to, and its ip
 		device = self._get_device_for_uri(request.uri)
 		# load up response

@@ -126,6 +126,7 @@ class UpnpClientResource(Resource):
 			request.write(response_data['content'])
 			request.finish()
 			return
+		request.responseHeaders.removeHeader('Content-Length')
 		# get the device that we're talking to, and its ip
 		# load up response
 		didl = 'urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/'
