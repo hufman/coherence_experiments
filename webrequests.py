@@ -8,6 +8,8 @@ from twisted.web.iweb import IBodyProducer
 from twisted.web.server import NOT_DONE_YET
 from FileBodyProducer import FileBodyProducer
 
+from urlparse import urlparse
+
 def proxy_to(request, url):
 	""" Send a new request to the given url, based on the given request """
 	def onResponse(response):
@@ -31,7 +33,9 @@ def proxy_to(request, url):
 	# start the connection
 	agent = Agent(reactor)
 	body = FileBodyProducer(request.content)
-	d = agent.request(request.method, url, request.requestHeaders, body)
+	headers = request.requestHeaders
+	headers.setRawHeaders('Host', [urlparse(url)[1],])
+	d = agent.request(request.method, url, headers, body)
 	d.addCallback(onResponse)
 
 	# hold on to the request until later
@@ -68,7 +72,9 @@ def proxy_response(request, url):
 	# start the connection
 	agent = Agent(reactor)
 	body = FileBodyProducer(request.content)
-	fetcher = agent.request(request.method, url, request.requestHeaders, body)
+	headers = request.requestHeaders
+	headers.setRawHeaders('Host', [urlparse(url)[1]])
+	fetcher = agent.request(request.method, url, headers, body)
 	fetcher.addCallback(onResponse)
 	fetcher.addErrback(d.errback)
 	return d
