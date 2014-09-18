@@ -2,7 +2,7 @@ from zope.interface import implements
 from twisted.internet import reactor
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet.protocol import Protocol
-from twisted.web.client import Agent
+from twisted.web.client import Agent, ContentDecoderAgent, GzipDecoder
 from twisted.web.http_headers import Headers
 from twisted.web.iweb import IBodyProducer
 from twisted.web.server import NOT_DONE_YET
@@ -31,7 +31,7 @@ def proxy_to(request, url):
 			self.request.finish()
 
 	# start the connection
-	agent = Agent(reactor)
+	agent = ContentDecoderAgent(Agent(reactor), [('gzip', GzipDecoder)])
 	body = FileBodyProducer(request.content)
 	headers = request.requestHeaders
 	headers.setRawHeaders('Host', [urlparse(url)[1],])
@@ -71,7 +71,7 @@ def proxy_response(request, url):
 			self.request.finish()
 
 	# start the connection
-	agent = Agent(reactor)
+	agent = ContentDecoderAgent(Agent(reactor), [('gzip', GzipDecoder)])
 	body = FileBodyProducer(request.content)
 	headers = request.requestHeaders
 	headers.setRawHeaders('Host', [urlparse(url)[1]])
@@ -115,7 +115,7 @@ def fetch(method, url, headers={}, data=''):
 		response.deliverBody(StringPrinter())
 
 	# start the connection
-	agent = Agent(reactor)
+	agent = ContentDecoderAgent(Agent(reactor), [('gzip', GzipDecoder)])
 	body = StringProducer(data)
 	fetcher = agent.request(method, url, headers, body)
 	fetcher.addCallback(onResponse)
