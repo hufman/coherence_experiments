@@ -13,6 +13,11 @@ import xml.etree.ElementTree as ElementTree
 ElementTree.register_namespace('upnp', 'urn:schemas-upnp-org:metadata-1-0/upnp/')
 ElementTree.register_namespace('didl', 'urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/')
 
+try:
+	import cStringIO as StringIO
+except:
+	import StringIO
+
 import functools
 import json
 import logging
@@ -123,6 +128,7 @@ class UpnpClientResource(Resource):
 		request.setResponseCode(response_data['code'])
 		request.responseHeaders = response_data['headers']
 		if 'xml' not in response_data['headers'].getRawHeaders('Content-Type', '')[0]:
+			request.responseHeaders.setRawHeaders('Content-Length', [len(response_data['content'])])
 			request.write(response_data['content'])
 			request.finish()
 			return
@@ -141,7 +147,11 @@ class UpnpClientResource(Resource):
 				uritag.text = self.get_altport_url(uritag.text).decode('utf-8')
 			result.text = ElementTree.tostring(resultdoc, encoding='utf-8').decode('utf-8')
 		doc = ElementTree.ElementTree(root)
-		doc.write(request, encoding='utf-8', xml_declaration=True)
+		docout = StringIO.StringIO()
+		doc.write(docout, encoding='utf-8', xml_declaration=True)
+		docoutstr = docout.getvalue()
+		request.responseHeaders.setRawHeaders('Content-Length', [len(docoutstr)])
+		request.write(docoutstr)
 		request.finish()
 
 

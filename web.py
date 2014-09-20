@@ -18,6 +18,11 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+try:
+	import cStringIO as StringIO
+except:
+	import StringIO
+
 from devices import DeviceManager
 from router import Router, ST, URL
 from webrequests import proxy_to
@@ -163,6 +168,7 @@ class UpnpResource(Resource):
 		request.setResponseCode(response_data['code'])
 		request.responseHeaders = response_data['headers']
 		if 'xml' not in response_data['headers'].getRawHeaders('Content-Type', '')[0]:
+			request.responseHeaders.setRawHeaders('Content-Length', [len(response_data['content'])])
 			request.write(response_data['content'])
 			request.finish()
 			return
@@ -182,7 +188,11 @@ class UpnpResource(Resource):
 				uritag.text = self.get_proxied_url(device, uritag.text).decode('utf-8')
 			result.text = ElementTree.tostring(resultdoc, encoding='utf-8').decode('utf-8')
 		doc = ElementTree.ElementTree(root)
-		doc.write(request, encoding='utf-8', xml_declaration=True)
+		docout = StringIO.StringIO()
+		doc.write(docout, encoding='utf-8', xml_declaration=True)
+		docoutstr = docout.getvalue()
+		request.responseHeaders.setRawHeaders('Content-Length', [len(docoutstr)])
+		request.write(docoutstr)
 		request.finish()
 
 resource = UpnpResource()

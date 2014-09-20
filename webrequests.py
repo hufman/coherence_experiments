@@ -16,10 +16,25 @@ def proxy_to(request, url):
 		# proxied response started coming back, headers are load ed
 		request.setResponseCode(response.code)
 		request.responseHeaders = response.headers
-		response.deliverBody(RequestWritingPrinter(request))
+		if 'xml' in request.responseHeaders.getRawHeaders('Content-Type', '')[0]:
+			response.deliverBody(BufferedRequestWritingPrinter(request))
+		else:
+			response.deliverBody(RequestWritingPrinter(request))
 	def onFailure(_):
-		request.setResponseCode(500)
+		request.setResponseCode(502)
 		request.finish()
+
+	class BufferedRequestWritingPrinter(Protocol):
+		# used to send from the proxied response to the original request
+		def __init__(self, request):
+			self.request = request
+			self.buffer = ''
+		def dataReceived(self, bytes):
+			self.buffer = self.buffer + bytes
+		def connectionLost(self, reason):
+			self.request.responseHeaders.setRawHeaders('Content-Length', [len(self.buffer)])
+			self.request.write(self.buffer)
+			self.request.finish()
 
 	class RequestWritingPrinter(Protocol):
 		# used to send from the proxied response to the original request
