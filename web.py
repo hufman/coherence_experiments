@@ -101,7 +101,7 @@ class UpnpResource(Resource):
 			return [
 			    d for d in devices if self.is_device_whitelisted(d)
 			]
-		if 'json' not in request.requestHeaders.getRawHeaders('Accept', '')[0]:
+		if 'json' not in request.requestHeaders.getRawHeaders('Accept', [''])[0]:
 			template = self.templates.get_template('devices.djhtml')
 			return template.render(devices=whitelisted_devices(self.device_list.devices))
 		else:
@@ -175,7 +175,7 @@ class UpnpResource(Resource):
 	def hack_description_response(self, request, response_data):
 		request.setResponseCode(response_data['code'])
 		request.responseHeaders = response_data['headers']
-		if 'xml' not in response_data['headers'].getRawHeaders('Content-Type', '')[0]:
+		if 'xml' not in response_data['headers'].getRawHeaders('Content-Type', [''])[0]:
 			request.responseHeaders.setRawHeaders('Content-Length', [len(response_data['content'])])
 			request.write(response_data['content'])
 			request.finish()
@@ -205,7 +205,7 @@ class UpnpResource(Resource):
 	def hack_mediaserver_response(self, request, response_data):
 		request.setResponseCode(response_data['code'])
 		request.responseHeaders = response_data['headers']
-		if 'xml' not in response_data['headers'].getRawHeaders('Content-Type', '')[0]:
+		if 'xml' not in response_data['headers'].getRawHeaders('Content-Type', [''])[0]:
 			request.responseHeaders.setRawHeaders('Content-Length', [len(response_data['content'])])
 			request.write(response_data['content'])
 			request.finish()

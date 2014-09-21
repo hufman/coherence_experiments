@@ -16,7 +16,7 @@ def proxy_to(request, url):
 		# proxied response started coming back, headers are load ed
 		request.setResponseCode(response.code)
 		request.responseHeaders = response.headers
-		if 'xml' in request.responseHeaders.getRawHeaders('Content-Type', '')[0]:
+		if 'xml' in request.responseHeaders.getRawHeaders('Content-Type', [''])[0]:
 			response.deliverBody(BufferedRequestWritingPrinter(request))
 		else:
 			response.deliverBody(RequestWritingPrinter(request))
