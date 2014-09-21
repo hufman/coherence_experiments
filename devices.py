@@ -74,7 +74,7 @@ class DeviceManager(object):
 				wants_parent.append(device)
 				self.orphans[root_id] = wants_parent
 	def ssdp_deleted(self, device_type, infos, *args, **kwargs):
-		device = self._get_device_with_usn(infos['USN'])
+		device = self._get_device_by_usn(infos['USN'])
 		if device:
 			louie.send('Coherence.UPnP.Device.removed', None, usn=infos['USN'])
 			self._send_event('deleted', args=(device,))
