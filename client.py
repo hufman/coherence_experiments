@@ -8,6 +8,7 @@ from coherence.upnp.core.device import RootDevice
 from coherence.upnp.core.ssdp import SSDPServer
 from router import ClientRouter, ST, URL
 from webrequests import proxy_to, get
+from ssdpalt import SSDPServerAlt
 
 import xml.etree.ElementTree as ElementTree
 ElementTree.register_namespace('upnp', 'urn:schemas-upnp-org:metadata-1-0/upnp/')
@@ -31,7 +32,8 @@ from urlparse import urljoin
 
 REMOTE_SERVERS = ['http://badasp:8080/devices/']
 pollers = {}
-ssdp = SSDPServer()
+ssdp = SSDPServer()   # respond to m-search
+ssdpalt = SSDPServerAlt()   # send notifies
 
 
 def ensure_utf8_bytes(v):
@@ -206,16 +208,20 @@ class RemoteDevice(object):
 		logger.info("Creating device proxy at %s to %s"%(device.location, self.remote_url))
 		self.resource.set_device(device)
 		ssdp.register('local', device.usn, device.st, device.location, device.server, host=self.host.host)
+		ssdpalt.register('local', device.usn, device.st, device.location, device.server, host=self.host.host)
 		ssdp.register('local', device.get_id(), device.get_id(), device.location, device.server, host=self.host.host)
+		ssdpalt.register('local', device.get_id(), device.get_id(), device.location, device.server, host=self.host.host)
 		if any(['ContentDirectory' in s.service_type for s in device.get_services()]):
 			type = 'urn:schemas-upnp-org:device:MediaServer:1'
 			usn = device.get_id() + "::" + type
 			ssdp.register('local', usn, type, device.location, device.server, host=self.host.host)
+			ssdpalt.register('local', usn, type, device.location, device.server, host=self.host.host)
 
 		for s in device.get_services():
 			usn = device.get_id() + "::" + s.service_type
 			st = s.service_type
 			ssdp.register('local', usn, st, device.location, device.server, host=self.host.host)
+			ssdpalt.register('local', usn, st, device.location, device.server, host=self.host.host)
 		return device
 
 	def stop(self):

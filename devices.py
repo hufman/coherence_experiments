@@ -3,6 +3,7 @@
 import logging
 from twisted.internet import reactor
 from coherence.upnp.core import DIDLLite
+from ssdpalt import SSDPServerAlt
 from coherence.upnp.core.ssdp import SSDPServer
 from coherence.upnp.core.msearch import MSearch
 from coherence.upnp.core.device import Device, RootDevice
@@ -12,8 +13,9 @@ logger = logging.getLogger(__name__)
 
 class DeviceManager(object):
 	def __init__(self):
-		self.ssdp = SSDPServer()
-		self.msearch = MSearch(self.ssdp, test=False)
+		self.ssdp = SSDPServer()		# listen for things destined to port 1900
+		self.ssdpalt = SSDPServerAlt()
+		self.msearch = MSearch(self.ssdpalt, test=False)	# use correct source port
 		self.devices = []
 		self.orphans = {}
 		self.listeners = {'added':[], 'deleted':[]}
