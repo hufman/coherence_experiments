@@ -11,6 +11,7 @@ class ST:
 	ContentDirectory = 'urn:schemas-upnp-org:service:ContentDirectory:1'
 
 class URL:
+	descURL = '<DESCURL>'
 	SCPDURL = '<SCPDURL>'
 	controlURL = '<controlURL>'
 	eventSubURL = '<eventSubURL>'
@@ -79,6 +80,12 @@ class Router(object):
 		""" Registers a matcher to hook on to devices """
 		def matcher(device):
 			""" Given a device, return a (url,fun) to hook on, or None """
+			if url == URL.descURL:
+				finalurl = device.get_location()
+				finalurl = finalurl[finalurl.find('/', 9):]
+				finalurl = self._get_device_url(device, finalurl)
+				logger.debug("Applied a hook <%s>/%s (%s) to %s"%(st, url, finalurl, device))
+				return (finalurl, fun)
 			for s in device.get_services():
 				if st == s.get_type():
 					if url == URL.SCPDURL:

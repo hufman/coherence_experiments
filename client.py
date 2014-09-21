@@ -90,18 +90,22 @@ class UpnpClientResource(Resource):
 	""" Smarter proxy, with mild routing """
 	isLeaf = True
 
-	def __init__(self, remote_url, device=None):
+	def __init__(self, remote_url, desc_url=None, device=None):
 		if len(remote_url) > 0 and remote_url[-1] != '/':
 			remote_url = remote_url + '/'
 		self.remote_url = remote_url
 		self.router = ClientRouter('/')
 		self.router.postprocess(ST.ContentDirectory, URL.controlURL)(self.hack_mediaserver_response)
+		if desc_url:
+			if len(desc_url) and desc_url[0] == '/':
+				desc_url = desc_url[1:]
+			self.router.postprocessors[desc_url] = self.hack_description_response
 		if device:
 			self.set_device(device)
 
 	def set_device(self, device):
-			self.device = device
-			self.router.add_device(device)
+		self.device = device
+		self.router.add_device(device)
 
 	@ensure_utf8
 	def render(self, request):
@@ -120,11 +124,40 @@ class UpnpClientResource(Resource):
 			uuidport,rest = url.split('/', 1)
 		else:
 			uuidport,rest = url, ''
+
 		if uuidport.count(':') != 2:
-			return url
-		base = urljoin(self.remote_url, '..')
-		proxy = altDeviceManager.get_device(base, uuidport)
-		return proxy.url + rest
+			# suburl on current device
+			return self.localbase + rest
+		else:
+			# needs an alt device
+			base = urljoin(self.remote_url, '..')
+			proxy = altDeviceManager.get_device(base, uuidport)
+			return proxy.url + rest
+
+	def hack_description_response(self, request, response_data):
+		request.setResponseCode(response_data['code'])
+		request.responseHeaders = response_data['headers']
+		if 'xml' not in response_data['headers'].getRawHeaders('Content-Type', '')[0]:
+			request.responseHeaders.setRawHeaders('Content-Length', [len(response_data['content'])])
+			request.write(response_data['content'])
+			request.finish()
+			return
+		request.responseHeaders.removeHeader('Content-Length')
+		request.responseHeaders.removeHeader('Content-Encoding')
+		# get the device that we're talking to, and its ip
+		# load up response
+		upnp = 'urn:schemas-upnp-org:device-1-0'
+		root = ElementTree.fromstring(response_data['content'])
+		for urlbase in root.findall("./{%s}URLBase"%(upnp,)):
+			urlbase.text = self.get_altport_url(urlbase.text)
+		# write out
+		doc = ElementTree.ElementTree(root)
+		docout = StringIO.StringIO()
+		doc.write(docout, encoding='utf-8', xml_declaration=True)
+		docoutstr = docout.getvalue()
+		request.responseHeaders.setRawHeaders('Content-Length', [len(docoutstr)])
+		request.write(docoutstr)
+		request.finish()
 
 	def hack_mediaserver_response(self, request, response_data):
 		request.setResponseCode(response_data['code'])
@@ -148,6 +181,7 @@ class UpnpClientResource(Resource):
 			for uritag in resultdoc.iter('{%s}res'%(didl,)):
 				uritag.text = self.get_altport_url(uritag.text).decode('utf-8')
 			result.text = ElementTree.tostring(resultdoc, encoding='utf-8').decode('utf-8')
+		# write out
 		doc = ElementTree.ElementTree(root)
 		docout = StringIO.StringIO()
 		doc.write(docout, encoding='utf-8', xml_declaration=True)
@@ -162,16 +196,17 @@ class RemoteDevice(object):
 		# remote url is server/devices/{uuid}
 		# location is /desc.xml
 		#
-		logger.info("Creating device proxy for %s"%(remote_url,))
 		self.uuid = uuid
 		self.remote_url = remote_url
 		self.location = location
 
-		self.resource = UpnpClientResource(remote_url, None)
+		self.resource = UpnpClientResource(remote_url, desc_url=location, device=None)
 		factory = Site(self.resource)
 		self.server = reactor.listenTCP(0, factory)
 		self.host = self.server.getHost()
 		proxylocation = 'http://%s:%s/%s'%(self._get_local_ip(), self.host.port, self.location)
+		self.resource.localbase = 'http://%s:%s/'%(self._get_local_ip(), self.host.port)
+		logger.info("Creating device proxy for %s at %s"%(remote_url,self.resource.localbase))
 
 		device_infos = {
 			'USN': usn,

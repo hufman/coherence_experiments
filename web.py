@@ -158,6 +158,12 @@ class UpnpResource(Resource):
 		logger.debug('Converting upnp relative %s to %s'%(url, result))
 		return result
 
+	def rewrite_base(self, device, base):
+		if urlparse.urljoin(device.get_location(), 'sub') == urlparse.urljoin(base, 'sub'):
+			# unnecessary base
+			return None
+		return self.get_proxied_url(device, base)
+
 	def get_device_icon(self, device):
 		if len(device.icons) > 0:
 			icon = sorted(device.icons, key=lambda i:abs(120-int(i['width'])))[0]
@@ -165,6 +171,36 @@ class UpnpResource(Resource):
 			return icon_url
 		else:
 			return ''
+
+	def hack_description_response(self, request, response_data):
+		request.setResponseCode(response_data['code'])
+		request.responseHeaders = response_data['headers']
+		if 'xml' not in response_data['headers'].getRawHeaders('Content-Type', '')[0]:
+			request.responseHeaders.setRawHeaders('Content-Length', [len(response_data['content'])])
+			request.write(response_data['content'])
+			request.finish()
+			return
+		request.responseHeaders.removeHeader('Content-Length')
+		request.responseHeaders.removeHeader('Content-Encoding')
+		# get the device that we're talking to, and its ip
+		device = self._get_device_for_uri(request.uri)
+		# load up the response
+		upnp = 'urn:schemas-upnp-org:device-1-0'
+		root = ElementTree.fromstring(response_data['content'])
+		for urlbase in root.findall("./{%s}URLBase"%(upnp,)):
+			newbase = self.rewrite_base(device, urlbase.text)
+			if newbase:
+				urlbase.text = newbase
+			else:
+				root.remove(newbase)
+		# write out
+		doc = ElementTree.ElementTree(root)
+		docout = StringIO.StringIO()
+		doc.write(docout, encoding='utf-8', xml_declaration=True)
+		docoutstr = docout.getvalue()
+		request.responseHeaders.setRawHeaders('Content-Length', [len(docoutstr)])
+		request.write(docoutstr)
+		request.finish()
 
 	def hack_mediaserver_response(self, request, response_data):
 		request.setResponseCode(response_data['code'])
@@ -189,6 +225,7 @@ class UpnpResource(Resource):
 			for uritag in resultdoc.iter('{%s}res'%(didl,)):
 				uritag.text = self.get_proxied_url(device, uritag.text).decode('utf-8')
 			result.text = ElementTree.tostring(resultdoc, encoding='utf-8').decode('utf-8')
+		# write out
 		doc = ElementTree.ElementTree(root)
 		docout = StringIO.StringIO()
 		doc.write(docout, encoding='utf-8', xml_declaration=True)
@@ -199,6 +236,7 @@ class UpnpResource(Resource):
 
 resource = UpnpResource()
 router.postprocess(ST.ContentDirectory, URL.controlURL)(resource.hack_mediaserver_response)
+router.postprocess(ST.ContentDirectory, URL.descURL)(resource.hack_description_response)
 
 factory = Site(resource)
 reactor.listenTCP(8080, factory)
