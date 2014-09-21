@@ -109,6 +109,7 @@ class UpnpResource(Resource):
 				"uuid": d.get_id(),
 				"usn": d.get_usn(),
 				"st": d.get_st(),
+				"server": d.server,
 				"location": self.get_proxied_url(d, urlparse.urlparse(d.get_location())[2]),
 				"subdevices": [{
 					"usn": s.get_id()+"::"+s.service_type,
@@ -116,6 +117,7 @@ class UpnpResource(Resource):
 					"location": self.get_proxied_url(d, urlparse.urlparse(d.get_location())[2])
 					} for s in d.get_services()]
 				} for d in whitelisted_devices(self.device_list.devices)]
+			request.responseHeaders.setRawHeaders('Content-Type', ['application/json'])
 			return json.dumps({"devices":devices})
 
 	def get_proxied_url(self, device, url):
