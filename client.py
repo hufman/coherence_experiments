@@ -156,7 +156,7 @@ class UpnpClientResource(Resource):
 
 
 class RemoteDevice(object):
-	def __init__(self, remote_url, usn, location, st, uuid, subdevices):
+	def __init__(self, remote_url, usn, location, st, uuid, server, subdevices):
 		# remote url is server/devices/{uuid}
 		# location is /desc.xml
 		#
@@ -173,7 +173,7 @@ class RemoteDevice(object):
 
 		device_infos = {
 			'USN': usn,
-			'SERVER': 'localhost',
+			'SERVER': server,
 			'ST': st,
 			'LOCATION': str(proxylocation),
 			'MANIFESTATION': 'local',
@@ -205,11 +205,13 @@ class RemoteDevice(object):
 
 		logger.info("Creating device proxy at %s to %s"%(device.location, self.remote_url))
 		self.resource.set_device(device)
-		ssdp.register('local', device.usn, device.st, device.location, device.get_uuid(), host=self.host.host)
+		ssdp.register('local', device.usn, device.st, device.location, device.server, host=self.host.host)
+		ssdp.register('local', device.get_id(), device.get_id(), device.location, device.server, host=self.host.host)
+
 		for s in device.get_services():
-			usn = s.get_id() + "::" + s.service_type
+			usn = device.get_id() + "::" + s.service_type
 			st = s.service_type
-			ssdp.register('local', usn, st, device.location, device.get_uuid(), host=self.host.host)
+			ssdp.register('local', usn, st, device.location, device.server, host=self.host.host)
 		return device
 
 	def stop(self):
@@ -242,11 +244,12 @@ class ServerPoller(object):
 			device_url = urljoin(self.url, urlquote(uuid)) + '/'
 			usn = device['usn']
 			st = device['st']
+			server = device['server']
 			location = device['location']  # relative to devices, includes uuid
 			location = location.split('/', 1)[-1] # relative to device root
 			subdevices = device['subdevices']
 			if uuid not in self.devices:
-				self.devices[uuid] = RemoteDevice(device_url, usn, location, st, uuid, subdevices)
+				self.devices[uuid] = RemoteDevice(device_url, usn, location, st, uuid, server, subdevices)
 
 	def on_error(self, err):
 		print(err)
