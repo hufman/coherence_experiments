@@ -207,6 +207,10 @@ class RemoteDevice(object):
 		self.resource.set_device(device)
 		ssdp.register('local', device.usn, device.st, device.location, device.server, host=self.host.host)
 		ssdp.register('local', device.get_id(), device.get_id(), device.location, device.server, host=self.host.host)
+		if any(['ContentDirectory' in s.service_type for s in device.get_services()]):
+			type = 'urn:schemas-upnp-org:device:MediaServer:1'
+			usn = device.get_id() + "::" + type
+			ssdp.register('local', usn, type, device.location, device.server, host=self.host.host)
 
 		for s in device.get_services():
 			usn = device.get_id() + "::" + s.service_type
